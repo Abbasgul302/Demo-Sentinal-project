@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel | Web Vulnerability Assessment Tool</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-sidebar: #020617;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #3b82f6;
+            /* Blue */
+            --accent-hover: #2563eb;
+            --danger: #ef4444;
+            /* Red */
+            --warning: #f59e0b;
+            /* Orange */
+            --success: #10b981;
+            /* Green */
+            --font-mono: 'Courier New', Courier, monospace;
+            --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --border: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-primary);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+
+        .nav-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent-primary);
+        }
+
+        .nav-item svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            background-color: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .content-area {
+            padding: 2rem;
+        }
+
+        /* --- SECTIONS (View Logic) --- */
+        .section-view {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .section-view.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- DASHBOARD --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .text-danger {
+            color: var(--danger);
+        }
+
+        .text-warning {
+            color: var(--warning);
+        }
+
+        .text-success {
+            color: var(--success);
+        }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .chart-container {
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* --- SCANNER UI --- */
+        .scanner-input-area {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .btn {
+            background-color: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .terminal-window {
+            background-color: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            color: #0f0;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .terminal-line.error {
+            color: var(--danger);
+        }
+
+        .terminal-line.info {
+            color: var(--accent-primary);
+        }
+
+        .terminal-line.warn {
+            color: var(--warning);
+        }
+
+        /* --- REPORTS TABLE --- */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge.high {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .badge.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .badge.low {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        /* --- KNOWLEDGE BASE --- */
+        .kb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .kb-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .kb-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .kb-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .kb-body {
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .kb-footer {
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 0.8rem;
+            color: var(--accent-primary);
+        }
+
+        /* --- TOAST NOTIFICATION --- */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border-left: 4px solid var(--accent-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 4px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            color: var(--text-primary);
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                transform: translateX(-100%);
+                height: 100%;
+                z-index: 200;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .scanner-input-area {
+                flex-direction: column;
+            }
+        }
+
+        /* --- 2D VIZ: NETWORK GRAPH --- */
+        #networkCanvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+        <div class="brand">
+            <svg viewBox="0 0 24 24">
+                <path
+                    d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+            </svg>
+            SENTINEL
+        </div>
+        <ul class="nav-links">
+            <li class="nav-item active" onclick="switchView('dashboard')">
+                <svg viewBox="0 0 24 24">
+                    <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                </svg>
+                Dashboard
+            </li>
+            <li class="nav-item" onclick="switchView('scanner')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z" />
+                </svg>
+                Assessment
+            </li>
+            <li class="nav-item" onclick="switchView('reports')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                </svg>
+                Reports
+            </li>
+            <li class="nav-item" onclick="switchView('knowledge')">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" />
+                </svg>
+                Vulnerability DB
+            </li>
+        </ul>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <header>
+            <div class="page-title" id="pageTitle">Dashboard Overview</div>
+            <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                Status: <span style="color:var(--success)">● Online</span>
+            </div>
+        </header>
+
+        <div class="content-area">
+
+            <!-- VIEW 1: DASHBOARD -->
+            <section id="dashboard" class="section-view active">
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <h3>Total Scans</h3>
+                        <div class="value" id="totalScans">0</div>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Critical Risks Found</h3>
+                        <div class="value text-danger" id="criticalCount">0</div>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Security Score</h3>
+                        <div class="value text-success" id="securityScore">A+</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-layout">
+                    <div class="card">
+                        <h3 style="margin-bottom: 1rem; color: var(--text-primary);">Vulnerability Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="vulnChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3 style="margin-bottom: 1rem; color: var(--text-primary);">Network Topology (Live)</h3>
+                        <div class="chart-container"
+                            style="border: 1px solid var(--border); border-radius: 8px; overflow:hidden;">
+                            <canvas id="networkCanvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 2: SCANNER -->
+            <section id="scanner" class="section-view">
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">New Assessment</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                        Enter a target URL to perform a simulated vulnerability assessment. This tool simulates an
+                        Active Scan, SQL Injection checks, XSS analysis, and header misconfigurations.
+                    </p>
+                    <div class="scanner-input-area">
+                        <input type="text" id="targetUrl" placeholder="https://example-web-app.com"
+                            value="http://testphp.vulnweb.com">
+                        <select id="scanType"
+                            style="background: var(--bg-dark); border: 1px solid var(--border); color: var(--text-primary); padding: 0.75rem; border-radius: 6px;">
+                            <option value="full">Full Audit (SQLi + XSS + Headers)</option>
+                            <option value="passive">Passive Reconnaissance</option>
+                            <option value="active">Active Vulnerability Scan</option>
+                        </select>
+                        <button class="btn" id="btnStartScan" onclick="startScan()">Start Scan</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <h3>Terminal Output</h3>
+                        <span id="scanStatus" style="color: var(--text-secondary); font-size: 0.875rem;">Idle</span>
+                    </div>
+                    <div class="terminal-window" id="terminalOutput">
+                        <div class="terminal-line info">[SENTINEL] Ready to initialize...</div>
+                        <div class="terminal-line">[SENTINEL] Awaiting target URL input.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 3: REPORTS -->
+            <section id="reports" class="section-view">
+                <div class="card">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3>Assessment Reports</h3>
+                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.875rem;"
+                            onclick="clearReports()">Clear All</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="reportsTable">
+                            <thead>
+                                <tr>
+                                    <th>Target URL</th>
+                                    <th>Date</th>
+                                    <th>Risk Level</th>
+                                    <th>Findings</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows injected by JS -->
+                            </tbody>
+                        </table>
+                        <div id="emptyReports" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                            No reports generated yet. Run a scan to see results.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: KNOWLEDGE BASE -->
+            <section id="knowledge" class="section-view">
+                <h2 style="margin-bottom: 1.5rem;">OWASP Top 10 Vulnerability Database</h2>
+                <div class="kb-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // --- DATA & STATE ---
+        const appState = {
+            scans: [],
+            stats: { high: 0, medium: 0, low: 0 },
+            isScanning: false
+        };
+
+        const vulnDB = [
+            { id: 'A01', name: 'Broken Access Control', desc: 'Restrictions on what authenticated users are allowed to do are often not properly enforced.', severity: 'High' },
+            { id: 'A03', name: 'Injection (SQLi)', desc: 'Injection vulnerabilities, such as SQL, NoSQL, OS, and LDAP injection, occur when untrusted data is sent to an interpreter.', severity: 'High' },
+            { id: 'A02', name: 'Cryptographic Failures', desc: 'Failures related to cryptography often lead to exposure of sensitive data.', severity: 'High' },
+            { id: 'A05', name: 'Security Misconfiguration', desc: 'This is commonly the result of insecure default configurations, incomplete or ad hoc configurations, open cloud storage, etc.', severity: 'Medium' },
+            { id: 'A07', name: 'Identification and Auth Failures', desc: 'Permits attackers to compromise passwords, keys, or session tokens, or to exploit other implementation flaws.', severity: 'High' },
+            { id: 'A06', name: 'Vulnerable and Outdated Components', desc: 'Using libraries, frameworks, and other software modules with known vulnerabilities.', severity: 'Medium' },
+            { id: 'A09', name: 'Security Logging Failures', desc: 'Insufficient logging and monitoring, coupled with missing or ineffective integration with incident response.', severity: 'Low' },
+            { id: 'A08', name: 'Software and Data Integrity Failures', desc: 'Code and infrastructure that does not protect against integrity violations.', severity: 'Medium' }
+        ];
+
+        // --- NAVIGATION ---
+        function switchView(viewId) {
+            // Update Sidebar
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            const activeNav = Array.from(document.querySelectorAll('.nav-item')).find(el => el.onclick.toString().includes(viewId));
+            if (activeNav) activeNav.classList.add('active');
+
+            // Update Main Content
+            document.querySelectorAll('.section-view').forEach(section => section.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            // Update Title
+            const titles = {
+                'dashboard': 'Dashboard Overview',
+                'scanner': 'Vulnerability Scanner',
+                'reports': 'Assessment Reports',
+                'knowledge': 'Knowledge Base'
+            };
+            document.getElementById('pageTitle').textContent = titles[viewId];
+
+            if (viewId === 'dashboard') updateDashboard();
+            if (viewId === 'reports') renderReportsTable();
+        }
+
+        // --- TOAST NOTIFICATIONS ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'error' ? 'var(--danger)' : (type === 'success' ? 'var(--success)' : 'var(--accent-primary)');
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // --- SIMULATION LOGIC ---
+        const terminal = document.getElementById('terminalOutput');
+
+        function logToTerminal(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = `terminal-line ${type}`;
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            div.textContent = `[${time}] ${msg}`;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        async function startScan() {
+            if (appState.isScanning) return;
+
+            const url = document.getElementById('targetUrl').value;
+            if (!url) {
+                showToast("Please enter a valid URL", "error");
+                return;
+            }
+
+            appState.isScanning = true;
+            document.getElementById('btnStartScan').disabled = true;
+            document.getElementById('btnStartScan').textContent = "Scanning...";
+            document.getElementById('scanStatus').textContent = "Running...";
+            terminal.innerHTML = '';
+
+            logToTerminal(`[SENTINEL] Initializing scan sequence for: ${url}`);
+            logToTerminal(`[SENTINEL] Mode: ${document.getElementById('scanType').value}`);
+
+            // SIMULATION STEPS
+            await wait(800);
+            logToTerminal(`[+] Resolving DNS...`);
+            await wait(600);
+            logToTerminal(`[+] Server detected: Apache/2.4.41 (Ubuntu)`);
+
+            await wait(1000);
+            logToTerminal(`[+] Starting crawler...`, 'info');
+            const pagesFound = Math.floor(Math.random() * 20) + 5;
+            await wait(1500);
+            logToTerminal(`[+] Discovered ${pagesFound} endpoints.`);
+
+            await wait(1000);
+            logToTerminal(`[MODULE] Checking for SQL Injection...`, 'info');
+            const sqlVuln = Math.random() > 0.6; // 40% chance to find
+            await wait(2000);
+            if (sqlVuln) {
+                logToTerminal(`[!] Potential SQL Injection found in parameter 'id' at /login.php`, 'error');
+            } else {
+                logToTerminal(`[OK] No SQL Injection vulnerabilities detected.`);
+            }
+
+            await wait(800);
+            logToTerminal(`[MODULE] Checking for XSS (Reflected)...`, 'info');
+            const xssVuln = Math.random() > 0.5;
+            await wait(1800);
+            if (xssVuln) {
+                logToTerminal(`[!] Reflected XSS found in search field.`, 'error');
+            } else {
+                logToTerminal(`[OK] XSS checks passed.`);
+            }
+
+            await wait(800);
+            logToTerminal(`[MODULE] Analyzing HTTP Headers...`, 'info');
+            const headerVuln = Math.random() > 0.3;
+            await wait(1200);
+            if (headerVuln) {
+                logToTerminal(`[!] Missing X-Frame-Options header.`, 'warn');
+                logToTerminal(`[!] Missing Content-Security-Policy header.`, 'warn');
+            } else {
+                logToTerminal(`[OK] Security headers look good.`);
+            }
+
+            await wait(500);
+            logToTerminal(`[SENTINEL] Scan complete. Generating report...`, 'success');
+
+            // Generate Result Object
+            const findings = [];
+            if (sqlVuln) findings.push({ title: 'SQL Injection', severity: 'High' });
+            if (xssVuln) findings.push({ title: 'Reflected XSS', severity: 'Medium' });
+            if (headerVuln) findings.push({ title: 'Missing Security Headers', severity: 'Low' });
+
+            // If by luck we found nothing, add a fake low severity info
+            if (findings.length === 0) {
+                findings.push({ title: 'Server Version Disclosure', severity: 'Low' });
+            }
+
+            const report = {
+                id: Date.now(),
+                url: url,
+                date: new Date().toLocaleDateString(),
+                findings: findings,
+                status: 'Completed'
+            };
+
+            // Update State
+            appState.scans.unshift(report); // Add to top
+            findings.forEach(f => {
+                if (f.severity === 'High') appState.stats.high++;
+                if (f.severity === 'Medium') appState.stats.medium++;
+                if (f.severity === 'Low') appState.stats.low++;
+            });
+
+            // Finish
+            appState.isScanning = false;
+            document.getElementById('btnStartScan').disabled = false;
+            document.getElementById('btnStartScan').textContent = "Start Scan";
+            document.getElementById('scanStatus').textContent = "Completed";
+            showToast("Scan completed successfully", "success");
+
+            // Auto switch to reports or dashboard? Let's stay but allow navigation
+            updateDashboard();
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- DASHBOARD & CHARTS ---
+        function updateDashboard() {
+            document.getElementById('totalScans').textContent = appState.scans.length;
+            document.getElementById('criticalCount').textContent = appState.stats.high;
+
+            // Calculate fake score
+            let score = 100;
+            score -= (appState.stats.high * 25);
+            score -= (appState.stats.medium * 10);
+            score -= (appState.stats.low * 5);
+            score = Math.max(0, score);
+
+            let grade = 'A';
+            if (score < 90) grade = 'B';
+            if (score < 70) grade = 'C';
+            if (score < 50) grade = 'D';
+            if (score < 30) grade = 'F';
+
+            const scoreEl = document.getElementById('securityScore');
+            scoreEl.textContent = `${grade} (${score})`;
+            scoreEl.style.color = score < 50 ? 'var(--danger)' : (score < 80 ? 'var(--warning)' : 'var(--success)');
+
+            drawVulnChart();
+        }
+
+        function drawVulnChart() {
+            const canvas = document.getElementById('vulnChart');
+            const ctx = canvas.getContext('2d');
+
+            // Handle retina display sharpness
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            const total = appState.stats.high + appState.stats.medium + appState.stats.low;
+
+            // Clear
+            ctx.clearRect(0, 0, rect.width, rect.height);
+
+            if (total === 0) {
+                ctx.fillStyle = "#334155";
+                ctx.font = "14px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("No data available yet", rect.width / 2, rect.height / 2);
+                return;
+            }
+
+            const data = [appState.stats.high, appState.stats.medium, appState.stats.low];
+            const colors = ['#ef4444', '#f59e0b', '#10b981']; // High, Med, Low
+            const labels = ['High', 'Med', 'Low'];
+
+            let startAngle = 0;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = Math.min(centerX, centerY) - 40;
+
+            data.forEach((value, index) => {
+                const sliceAngle = (value / total) * 2 * Math.PI;
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+                ctx.fillStyle = colors[index];
+                ctx.fill();
+
+                // Legend Text
+                const middleAngle = startAngle + sliceAngle / 2;
+                const textX = centerX + (radius + 20) * Math.cos(middleAngle);
+                const textY = centerY + (radius + 20) * Math.sin(middleAngle);
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = textX > centerX ? 'left' : 'right';
+                ctx.fillText(`${labels[index]}: ${value}`, textX, textY);
+
+                startAngle += sliceAngle;
+            });
+
+            // Cutout center for Donut
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 0.6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#1e293b'; // Card bg color
+            ctx.fill();
+        }
+
+        // --- REPORTS TABLE ---
+        function renderReportsTable() {
+            const tbody = document.querySelector('#reportsTable tbody');
+            const emptyMsg = document.getElementById('emptyReports');
+
+            tbody.innerHTML = '';
+
+            if (appState.scans.length === 0) {
+                emptyMsg.style.display = 'block';
+                return;
+            } else {
+                emptyMsg.style.display = 'none';
+            }
+
+            appState.scans.forEach(scan => {
+                // Determine highest severity
+                let highest = 'Low';
+                let badgeClass = 'low';
+                scan.findings.forEach(f => {
+                    if (f.severity === 'High') { highest = 'High'; badgeClass = 'high'; }
+                    else if (f.severity === 'Medium' && highest !== 'High') { highest = 'Medium'; badgeClass = 'medium'; }
+                });
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family: var(--font-mono); color: var(--accent-primary);">${scan.url}</td>
+                    <td>${scan.date}</td>
+                    <td><span class="badge ${badgeClass}">${highest}</span></td>
+                    <td>${scan.findings.length} issues found</td>
+                    <td><button class="btn" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="viewDetails(${scan.id})">View</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearReports() {
+            if (confirm("Are you sure you want to delete all reports? This cannot be undone.")) {
+                appState.scans = [];
+                appState.stats = { high: 0, medium: 0, low: 0 };
+                renderReportsTable();
+                updateDashboard();
+                showToast("All reports cleared", "info");
+            }
+        }
+
+        function viewDetails(id) {
+            const scan = appState.scans.find(s => s.id === id);
+            if (!scan) return;
+
+            // Simple alert substitute (Could be a modal, but let's use a detailed toast for now to save space in single file)
+            let detailText = `Target: ${scan.url}\nFindings:\n`;
+            scan.findings.forEach(f => detailText += `- [${f.severity}] ${f.title}\n`);
+
+            // Let's create a custom modal for this properly
+            createModal(scan);
+        }
+
+        function createModal(scan) {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0'; modal.style.left = '0';
+            modal.style.width = '100%'; modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            modal.style.zIndex = '2000';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+
+            const content = document.createElement('div');
+            content.style.backgroundColor = 'var(--bg-card)';
+            content.style.padding = '2rem';
+            content.style.borderRadius = '12px';
+            content.style.maxWidth = '500px';
+            content.style.width = '90%';
+            content.style.border = '1px solid var(--border)';
+
+            let findingsHtml = scan.findings.map(f =>
+                `<div style="padding: 0.5rem; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between;">
+                    <span>${f.title}</span>
+                    <span class="badge ${f.severity.toLowerCase()}">${f.severity}</span>
+                </div>`
+            ).join('');
+
+            content.innerHTML = `
+                <h2 style="margin-bottom:1rem;">Scan Details</h2>
+                <p style="color:var(--text-secondary); margin-bottom:1rem;">${scan.url} on ${scan.date}</p>
+                <div style="background: var(--bg-dark); padding: 0.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h4 style="margin-bottom:0.5rem; font-size:0.9rem;">Findings</h4>
+                    ${findingsHtml}
+                </div>
+                <button class="btn" onclick="this.closest('div[style*=\"position: fixed\"]').remove()">Close</button>
+            `;
+
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+        }
+
+        // --- KNOWLEDGE BASE RENDERER ---
+        function initKnowledgeBase() {
+            const container = document.querySelector('.kb-grid');
+            vulnDB.forEach(vuln => {
+                const card = document.createElement('div');
+                card.className = 'kb-card';
+                card.innerHTML = `
+                    <div class="kb-header">
+                        <strong>${vuln.id}: ${vuln.name}</strong>
+                        <span class="badge ${vuln.severity.toLowerCase()}">${vuln.severity}</span>
+                    </div>
+                    <div class="kb-body">${vuln.desc}</div>
+                    <div class="kb-footer">Impact: High | Exploitability: ${Math.floor(Math.random() * 40) + 60}%</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- 2D VIZ: NETWORK GRAPH (Interactive Animation) ---
+        let networkNodes = [];
+        let networkCanvas, networkCtx;
+        let animationFrame;
+
+        function initNetworkViz() {
+            networkCanvas = document.getElementById('networkCanvas');
+            networkCtx = networkCanvas.getContext('2d');
+
+            // Handle resizing
+            const resize = () => {
+                const rect = networkCanvas.parentElement.getBoundingClientRect();
+                networkCanvas.width = rect.width;
+                networkCanvas.height = rect.height;
+            };
+            window.addEventListener('resize', resize);
+            resize();
+
+            // Create Nodes
+            for (let i = 0; i < 5; i++) {
+                networkNodes.push({
+                    x: Math.random() * networkCanvas.width,
+                    y: Math.random() * networkCanvas.height,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
+                    size: Math.random() * 3 + 2
+                });
+            }
+            animateNetwork();
+        }
+
+        function animateNetwork() {
+            networkCtx.clearRect(0, 0, networkCanvas.width, networkCanvas.height);
+
+            // Update and Draw Nodes
+            networkCtx.fillStyle = '#3b82f6';
+            networkCtx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+
+            networkNodes.forEach((node, index) => {
+                // Move
+                node.x += node.vx;
+                node.y += node.vy;
+
+                // Bounce
+                if (node.x < 0 || node.x > networkCanvas.width) node.vx *= -1;
+                if (node.y < 0 || node.y > networkCanvas.height) node.vy *= -1;
+
+                // Draw Node
+                networkCtx.beginPath();
+                networkCtx.arc(node.x, node.y, node.size, 0, Math.PI * 2);
+                networkCtx.fill();
+
+                // Draw Connections
+                for (let j = index + 1; j < networkNodes.length; j++) {
+                    const other = networkNodes[j];
+                    const dist = Math.hypot(node.x - other.x, node.y - other.y);
+                    if (dist < 100) {
+                        networkCtx.beginPath();
+                        networkCtx.moveTo(node.x, node.y);
+                        networkCtx.lineTo(other.x, other.y);
+                        networkCtx.stroke();
+                    }
+                }
+            });
+
+            animationFrame = requestAnimationFrame(animateNetwork);
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initKnowledgeBase();
+            initNetworkViz();
+            updateDashboard();
+        });
+
+    </script>
+</body>
+
+</html>
